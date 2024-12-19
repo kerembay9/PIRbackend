@@ -1,0 +1,100 @@
+{
+    "political updates": [
+        {
+            "title": "Politics: Latest news and headlines",
+            "url": "https://www.nbcnews.com/politics"
+        },
+        {
+            "title": "Politics, Policy, Political News - POLITICO",
+            "url": "https://www.politico.com/"
+        },
+        {
+            "title": "Latest & Breaking US Political News",
+            "url": "https://apnews.com/politics"
+        },
+        {
+            "title": "Politics",
+            "url": "https://www.cnn.com/politics"
+        },
+        {
+            "title": "Breaking Political News, Video & Analysis-ABC News",
+            "url": "https://abcnews.go.com/Politics"
+        },
+        {
+            "title": "Politics, Policy and Political News & Updates",
+            "url": "https://www.foxnews.com/politics"
+        },
+        {
+            "title": "Political parties, election news, policies, and news from the ...",
+            "url": "https://www.cbsnews.com/politics/"
+        },
+        {
+            "title": "Latest and breaking political news today",
+            "url": "https://www.politico.com/politics"
+        }
+    ],
+    "how to meditate": [
+        {
+            "title": "Learn How to Meditate",
+            "url": "https://www.mindful.org/how-to-meditate/"
+        },
+        {
+            "title": "Help how do I actually meditate and know that I am doing it ...",
+            "url": "https://www.reddit.com/r/Meditation/comments/18bq5li/help_how_do_i_actually_meditate_and_know_that_i/"
+        },
+        {
+            "title": "How To Meditate In Ten Minutes",
+            "url": "https://www.headspace.com/articles/how-to-meditate-in-ten-minutes"
+        },
+        {
+            "title": "How to Meditate (with Pictures)",
+            "url": "https://www.wikihow.com/Meditate"
+        },
+        {
+            "title": "How to Meditate",
+            "url": "https://www.nytimes.com/article/how-to-meditate.html"
+        },
+        {
+            "title": "How to meditate, being a beginner",
+            "url": "https://www.quora.com/How-do-I-meditate-being-a-beginner"
+        },
+        {
+            "title": "Meditation 101: Techniques, Benefits, and a Beginner's ...",
+            "url": "https://www.gaiam.com/blogs/discover/meditation-101-techniques-benefits-and-a-beginner-s-how-to"
+        }
+    ],
+    "cancer treatment": [
+        {
+            "title": "Types of Cancer Treatment - NCI",
+            "url": "https://www.cancer.gov/about-cancer/treatment/types"
+        },
+        {
+            "title": "Treatment For Cancer | Cancer Treatment Options",
+            "url": "https://www.cancer.org/cancer/managing-cancer/treatment-types.html"
+        },
+        {
+            "title": "Cancer treatment",
+            "url": "https://www.mayoclinic.org/tests-procedures/cancer-treatment/about/pac-20393344"
+        },
+        {
+            "title": "Treatment for Cancer - NCI",
+            "url": "https://www.cancer.gov/about-cancer/treatment"
+        },
+        {
+            "title": "Treatment for cancer | Cancer in general",
+            "url": "https://www.cancerresearchuk.org/about-cancer/treatment"
+        },
+        {
+            "title": "Cancer Treatment Options",
+            "url": "https://www.mdanderson.org/patients-family/diagnosis-treatment/treatment-options.html"
+        },
+        {
+            "title": "Types of Cancer Treatments",
+            "url": "https://www.mskcc.org/cancer-care/diagnosis-treatment/cancer-treatments"
+        },
+        {
+            "title": "City of Hope Cancer Treatment Centers",
+            "url": "https://www.cancercenter.com/"
+        }
+    ]
+}

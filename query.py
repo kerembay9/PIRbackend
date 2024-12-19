@@ -1,35 +1,61 @@
 import random
 import json
 import pandas as pd
-import importlib
-
+import requests
 
 from typing import List, Dict
 import random
 import pandas as pd
-from transformers import BertTokenizer, BertModel
+
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
 
+from openai import OpenAI
+# line 20 openai key line 250 other key
 class DummyQueryGenerator:
     def __init__(self):
         self.categories = pd.read_csv('data/google_trends.csv')
         self.categories['embedding'] = self.categories['embedding'].apply(lambda x: np.fromstring(x.strip('[]'), dtype=float, sep=' '))
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.model = BertModel.from_pretrained('bert-base-uncased')
         self.similarities = None
-        
+        self.client = None
         self.style_prompt = ""
 
-    def get_embedding(self, query: str):
-        inputs = self.tokenizer(query, return_tensors='pt', truncation=True, padding=True)
-        outputs = self.model(**inputs)
-        return outputs.last_hidden_state.mean(dim=1).squeeze().tolist()
+    def get_embedding(self,query: str):
+        # Define the API endpoint for the POST request
+        url_post = "https://kerembayramoglu-cs533pir.hf.space/gradio_api/call/predict"
 
+        # Define the query data
+        data = {
+            "data": [query]
+        }
 
-    # TODO: improve with more style features
+        # First POST request to trigger the model prediction
+        response_post = requests.post(url_post, json=data)
+
+        # Check if the first request was successful
+        if response_post.status_code == 200:
+            # Extract the event ID from the response
+            event_id = response_post.json().get('event_id', None)
+
+            if event_id:
+                # Use the event ID to poll for the response
+                url_get = f"https://kerembayramoglu-cs533pir.hf.space/gradio_api/call/predict/{event_id}"
+                response_get = requests.get(url_get, stream=True)
+                try:
+                    data = response_get.text.split("data: ")[1]  # Get everything after 'data: '
+                    data = json.loads(data)  # Convert the string representation of a list into an actual list
+                    # Return the embeddings
+                    return data
+                except Exception as e:
+                    print("Error parsing response:", e)
+                    return None
+            else:
+                print("Event ID not found.")
+                return None
+        else:
+            print(f"Error in POST request: {response_post.status_code}")
+            return None
+           
     def analyze_query_style(self, query: str) -> Dict:
         style_features = {
             'length': len(query.split()),
@@ -40,7 +66,6 @@ class DummyQueryGenerator:
         }
         return style_features
 
-    # TODO: Identify within the embedding space
     def identify_query_category(self, query: str) -> str:
         # Get query embedding
         query_embedding = self.get_embedding(query)
@@ -53,7 +78,7 @@ class DummyQueryGenerator:
         
 
     # TODO: Discuss, and implement/change as needed
-    def get_distant_categories(self, num_categories: int = 20) -> List[str]:
+    def get_distant_categories(self, num_categories: int = 2) -> List[str]:
         # Get all embeddings as numpy array
         embeddings = np.array(self.categories['embedding'].tolist())
         
@@ -94,154 +119,15 @@ class DummyQueryGenerator:
         random.shuffle(selected_categories)
         
         return selected_categories
-    
-    def visualize_category_distribution(self, original_query: str, selected_categories: List[str]):
-        # Get embeddings and categories
-        selected_indices = self.categories[self.categories['category'].isin(selected_categories)].index
-        all_embeddings = np.array(self.categories['embedding'].tolist())
-        all_categories = self.categories['category'].tolist()
-        
-        # Get embedding for original query
-        query_embedding = np.array(self.get_embedding(original_query)).reshape(1, -1)
-        
-        # Combine embeddings for TSNE
-        combined_embeddings = np.vstack([all_embeddings, query_embedding])
-        
-        # Reduce dimensionality
-        tsne = TSNE(n_components=2, random_state=42)
-        embeddings_2d = tsne.fit_transform(combined_embeddings)
-        
-        # Separate categories and query coordinates
-        categories_2d = embeddings_2d[:-1]
-        query_2d = embeddings_2d[-1]
-        
-        # Create plot
-        plt.figure(figsize=(15, 10))
-        
-        # Plot all categories
-        plt.scatter(categories_2d[:, 0], categories_2d[:, 1], 
-                alpha=0.1, color='gray', label='All Categories')
-        
-        # Plot selected categories with labels
-        plt.scatter(categories_2d[selected_indices, 0], categories_2d[selected_indices, 1], 
-                color='blue', alpha=0.6, label='Selected Categories')
-        
-        # Add labels for selected categories
-        for idx in selected_indices:
-            plt.annotate(all_categories[idx], 
-                        (categories_2d[idx, 0], categories_2d[idx, 1]),
-                        xytext=(5, 5), textcoords='offset points',
-                        fontsize=8, alpha=0.8)
-        
-        # Plot and label original query
-        plt.scatter(query_2d[0], query_2d[1], 
-                color='red', s=200, marker='*', label='Original Query')
-        plt.annotate('Original Query', 
-                    (query_2d[0], query_2d[1]),
-                    xytext=(10, 10), textcoords='offset points',
-                    fontsize=10, color='red', fontweight='bold')
-        
-        # Styling
-        plt.legend(fontsize=10)
-        plt.title('Distribution of Categories and Original Query in Embedding Space', 
-                fontsize=12, pad=20)
-        plt.grid(True, alpha=0.3)
-        
-        # Adjust layout to prevent label overlap
-        plt.tight_layout()
-        plt.show()
 
-
-    def visualize_query_trajectories(self, original_query: str, dummy_queries: List[dict], follow_up_queries: List[dict]):
-        """
-        Visualize the distribution of categories, original query, dummy queries and their follow-ups
-        """
-        from sklearn.manifold import TSNE
-        import matplotlib.pyplot as plt
-        
-        # Get all category embeddings
-        all_embeddings = np.array(self.categories['embedding'].tolist())
-        all_categories = self.categories['category'].tolist()
-        
-        # Get embeddings for original, dummy and follow-up queries
-        original_embedding = np.array(self.get_embedding(original_query)).reshape(1, -1)
-        dummy_embeddings = np.vstack([self.get_embedding(q['query']) for q in dummy_queries])
-        followup_embeddings = np.vstack([self.get_embedding(q['query']) for q in follow_up_queries])
-        
-        # Combine all embeddings for TSNE
-        combined_embeddings = np.vstack([
-            all_embeddings,
-            original_embedding,
-            dummy_embeddings,
-            followup_embeddings
-        ])
-        
-        # Reduce dimensionality
-        tsne = TSNE(n_components=2, random_state=42)
-        embeddings_2d = tsne.fit_transform(combined_embeddings)
-        
-        # Separate different types of points
-        categories_2d = embeddings_2d[:len(all_embeddings)]
-        original_2d = embeddings_2d[len(all_embeddings)]
-        dummy_2d = embeddings_2d[len(all_embeddings)+1:len(all_embeddings)+1+len(dummy_queries)]
-        followup_2d = embeddings_2d[-len(follow_up_queries):]
-        
-        # Create plot
-        plt.figure(figsize=(15, 10))
-        
-        # Plot categories in background
-        plt.scatter(categories_2d[:, 0], categories_2d[:, 1], 
-                alpha=0.1, color='gray', label='Categories')
-        
-        # Plot original query
-        plt.scatter(original_2d[0], original_2d[1], 
-                color='red', s=200, marker='*', label='Original Query')
-        
-        # Plot dummy and follow-up queries with arrows
-        for i in range(len(dummy_queries)):
-            # Plot dummy query point
-            plt.scatter(dummy_2d[i, 0], dummy_2d[i, 1], 
-                    color='blue', alpha=0.6, label='Dummy Query' if i == 0 else "")
-            
-            # Plot follow-up query point
-            plt.scatter(followup_2d[i, 0], followup_2d[i, 1], 
-                    color='green', alpha=0.6, label='Follow-up Query' if i == 0 else "")
-            
-            # Draw arrow from dummy to follow-up
-            plt.arrow(dummy_2d[i, 0], dummy_2d[i, 1],
-                    followup_2d[i, 0] - dummy_2d[i, 0],
-                    followup_2d[i, 1] - dummy_2d[i, 1],
-                    head_width=0.3, head_length=0.5, fc='k', ec='k', alpha=0.3)
-            
-            # Add labels
-            plt.annotate(f"D{i+1}: {dummy_queries[i]['query'][:30]}...",
-                        (dummy_2d[i, 0], dummy_2d[i, 1]),
-                        xytext=(5, 5), textcoords='offset points',
-                        fontsize=8, alpha=0.8)
-            plt.annotate(f"F{i+1}: {follow_up_queries[i]['query'][:30]}...",
-                        (followup_2d[i, 0], followup_2d[i, 1]),
-                        xytext=(5, 5), textcoords='offset points',
-                        fontsize=8, alpha=0.8)
-        
-        plt.title('Query Trajectory Visualization\nShowing Original Query, Dummy Queries, and Follow-ups',
-                fontsize=12, pad=20)
-        plt.legend(fontsize=10)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.show()
-
-
-    def generate_dummy_queries(self, input_query: str, num_queries: int = 20, show_plots: bool = True):
+    def generate_dummy_queries(self, input_query: str, num_queries: int = 2):
         # Analyze input query style
         query_style = self.analyze_query_style(input_query)
         
         # Identify input category
         input_category = self.identify_query_category(input_query)
-        
         # Get distant categories
         distant_categories = self.get_distant_categories(num_queries)  # Get enough categories for individual queries
-        if show_plots:
-            self.visualize_category_distribution(input_query, distant_categories)
         
         # Prepare style prompt
         style_prompt = f"""
@@ -256,7 +142,7 @@ class DummyQueryGenerator:
         print(distant_categories)
         # Generate one query per category
         for category in distant_categories:
-            completion = client.chat.completions.create(
+            completion = self.client.chat.completions.create(
                 model="gpt-4o-mini-2024-07-18",
                 messages=[
                     {"role": "system", "content": f"""You are a query generation assistant. Generate a single query that:
@@ -285,13 +171,13 @@ class DummyQueryGenerator:
             # Break if we have enough queries
             if len(all_queries) >= num_queries:
                 break
+        all_queries = all_queries[:num_queries]
+        all_queries.append({"query": input_query, "category": input_category})
 
-        return all_queries[:num_queries]
+        result = fetch_multiple_query_results(all_queries)
+        return all_queries,result,input_category
     
-    
-    # Consecutive query handling
-
-    def generate_consecutive_queries(self,input_query, dummy_queries):        
+    def generate_consecutive_queries(self,input_query, dummy_queries,input_category):        
         # Analyze input query style
         query_style = self.analyze_query_style(input_query)
         
@@ -306,7 +192,7 @@ class DummyQueryGenerator:
         all_queries = []
         for dummy_query in dummy_queries:
             # Generate a query that will act as a follow up to the dummy query
-            follow_up_query = client.chat.completions.create(
+            follow_up_query = self.client.chat.completions.create(
                 model="gpt-4o-mini-2024-07-18",
                 messages=[{"role": "system", "content": f"""You are a query generation assistant. Generate a single query that:
                         1. Will act as a follow up to the query: {dummy_query['query']} 
@@ -327,8 +213,43 @@ class DummyQueryGenerator:
             query_result = parse_dummy_queries(follow_up_query.choices[0].message.content)
 
             all_queries.extend(query_result)
-                
-        return all_queries
+
+        all_queries.append({"query": input_query, "category": input_category})        
+        result = fetch_multiple_query_results(all_queries)
+        return all_queries, result
     
 def parse_dummy_queries(response):
     return json.loads(response)['queries']
+
+def fetch_single_query_results(query, api_key):
+    """
+    Fetch search results for a single query using SerpAPI.
+    Returns a list of dictionaries with title and URL.
+    """
+    url = "https://serpapi.com/search"
+    params = {
+        "q": query,
+        "engine": "google",
+        "api_key": api_key
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        organic_results = response.json().get("organic_results", [])
+        return [
+            {"title": result.get("title", ""), "url": result.get("link", "")}
+            for result in organic_results
+        ]
+    else:
+        raise Exception(f"Error: {response.status_code} - {response.text}")
+
+def fetch_multiple_query_results(queries):
+    """
+    Fetch search results for multiple queries using SerpAPI.
+    Returns a dictionary where keys are queries and values are lists of dictionaries (title and URL).
+    """
+    results = {}
+    for query in queries:
+        query = query["query"]
+        results[query] = fetch_single_query_results(query, api_key)
+        print("results[query]: ", results[query])
+    return results
